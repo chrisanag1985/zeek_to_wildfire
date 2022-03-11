@@ -77,10 +77,16 @@ const wildfire_errors: table[count] of string = {
 
 function send_notice(verdict: string,f: fa_file){
 
-               #print("Send Notice");
-	       local conns  =  join_string_set(f$info$conn_uids,",");
-               local n: Notice::Info = Notice::Info($note=Match,$msg=fmt("%s Detected",verdictDict[verdict]),$sub=fmt("File: %s for Connection IDs: %s",f$info$sha256,conns));
+	       #print("Send Notice");
+               local protocol = f$source;
+               local tx_hosts = fmt("%s",f$info$tx_hosts);
+               tx_hosts = gsub(tx_hosts,/\n|\t|\{|\}/,"");
+               local rx_hosts = fmt("%s",f$info$rx_hosts);
+               rx_hosts = gsub(rx_hosts,/\n|\t|\{|\}/,"");
+               local conns  =  join_string_set(f$info$conn_uids,",");
+               local n: Notice::Info = Notice::Info($note=Match,$msg=fmt("%s Detected",verdictDict[verdict]),$sub=fmt("File: %s over %s for Connection IDs: %s orig_h: %s resp_h: %s",f$info$sha256,protocol,conns,tx_hosts,rx_hosts));
                NOTICE(n);
+
 
 }
 
