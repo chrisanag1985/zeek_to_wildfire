@@ -16,8 +16,8 @@ Just load the script in your `local.zeek` and change the configuration values fo
 @load <path-to-script>/wildfire.zeek
 
 #change the configuration values
-redef WildFireSandbox::API_KEY = "your api key";
-redef WildFireSandbox::WILDFIRE_SERVER = "https://your-ip";
+redef WildFireSandbox::API_KEY = "your-wildfire-api-key";
+redef WildFireSandbox::WILDFIRE_SERVER = "https://your-wildfire-ip";
 ```
 
 Optionally you can change the followings
