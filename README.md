@@ -12,6 +12,7 @@ If any malicious file found it creates a Zeek Notice Log.
 Just load the script in your `local.zeek` and change the configuration values for your Wildfire IP and your API-KEY 
 
 ```
+# Load the script to Zeek
 @load <path-to-script>/wildfire.zeek
 
 #change the configuration values
