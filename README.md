@@ -8,6 +8,14 @@ If the hash value doesn't exists in WildFire's Database it automatically submits
 
 If any malicious file found it creates a Zeek Notice Log.
 
+## How it works
+
+- Zeek creates SHA256 File hash and extracts the files that are supported from PA Wildfire.
+- Send the hash to WildFire and gets the verdict. If it is malicious it creates a notice
+- If the hash it is not known to wildfire, Zeek submits the file to Wildfire.
+- Check every 2 min (in case of Pending state), for verdict.
+- If verdict is malicious then it creates a notice.
+
 ## Installation
 Just load the script in your `local.zeek` and change the configuration values for your Wildfire IP and your API-KEY 
 
