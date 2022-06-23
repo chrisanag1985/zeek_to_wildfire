@@ -31,7 +31,7 @@ export {
        option match_file_types = /application\/x-dosexec/ |
                                /application\/pdf/ |  
                                /application\/msword/ |
-                               /application\/x-rar / |
+                               /application\/x-rar/ |
                                /application\/x-gzip/ |
 		        	/application\/vnd.openxmlformats-officedocument/|
                                /application\/vnd.openxmlformats-officedocument.wordprocessingml.document/ |
