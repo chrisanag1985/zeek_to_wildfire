@@ -77,17 +77,18 @@ const wildfire_errors: table[count] of string = {
 
 function send_notice(verdict: string,f: fa_file){
 
-	       #print("Send Notice");
-               
-	       local connection_id: connection;
-	       
-	       for ( cid in f$conns ){
-	       		connection_id = f$conns[cid];
+	       local uid = join_string_set(f$info$conn_uids,"");
+	       local src: addr;
+	       for ( s in f$info$tx_hosts ){
+	       		src = s;
 	       }
-	       
+	       local dst: addr;
+	       for ( s in f$info$rx_hosts ){
+	       		dst = s;
+	       }
 	       local protocol = f$source;
            
-               local n: Notice::Info = Notice::Info($note=Match,$conn=connection_id,$msg=fmt("%s Detected",verdictDict[verdict]),$sub=fmt("File: %s (SHA256: %s) over %s with format %s",f$info$fuid,f$info$sha256,protocol,f$info$mime_type));
+               local n: Notice::Info = Notice::Info($note=Match,$uid=uid,$src=src,$fuid=f$info$fuid,$dst=dst,$msg=fmt("%s Detected",verdictDict[verdict]),$sub=fmt("Malicious file with SHA256: %s detected over %s with format %s",f$info$sha256,protocol,f$info$mime_type));
                NOTICE(n);
 
 
