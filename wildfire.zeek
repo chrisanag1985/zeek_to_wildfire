@@ -107,7 +107,12 @@ function send_hash_to_wildfire(f: fa_file): string{
        local url = WILDFIRE_SERVER+get_verdict;
        local req = ActiveHTTP::Request($url=url,$addl_curl_args=form_data);
 
-       return  when (local response = ActiveHTTP::request($req=req))
+       @if (Version::number >= 50000)
+           return  when [ req ](local response = ActiveHTTP::request($req=req))
+       @else
+           return  (local response = ActiveHTTP::request($req=req))
+       @endif
+
        {
                if (response$code == 200){
                        local body = response$body;
@@ -130,7 +135,12 @@ function send_file_to_wildfire(f: fa_file) {
        local url = WILDFIRE_SERVER+submit_file;
        local req = ActiveHTTP::Request($url=url,$addl_curl_args=form_data);
 
-       when (local response = ActiveHTTP::request($req=req))
+       @if (Version::number >= 50000)
+           return  when [ req ](local response = ActiveHTTP::request($req=req))
+       @else
+           return  (local response = ActiveHTTP::request($req=req))
+       @endif
+
        {
                if (response$code != 200){
                        #print(response$code);
@@ -166,7 +176,13 @@ function do_verdict(verdict: string,f: fa_file){
 
 event WildFireSandbox::recheck_hash(f: fa_file){
        #print(fmt("recheck %s",f$info$sha256));
-       when ( local verdict = send_hash_to_wildfire(f)){
+       @if (Version::number >= 50000)
+           when [f] (local verdict = send_hash_to_wildfire(f))
+       @else
+           when (local verdict = send_hash_to_wildfire(f))
+       @endif
+       {
+
                print(verdict);
                do_verdict(verdict,f);
        }
@@ -189,12 +205,23 @@ event file_state_remove(f: fa_file){
 
        # rename to SHA256 to stored files
        local cmd = fmt("mv ./extract_files/%s ./extract_files/%s", orig, dest);
-       when ( local result = Exec::run([$cmd=cmd]) )
+       @if (Version::number >= 50000)
+            when [cmd]( local result = Exec::run([$cmd=cmd]) )
+       @else
+            when ( local result = Exec::run([$cmd=cmd]) )
+       @endif
+
                {
                }
        f$info$extracted = dest;
 
-       when (local verdict = send_hash_to_wildfire(f)){
+       @if (Version::number >= 50000)
+            when [f] (local verdict = send_hash_to_wildfire(f))
+       @else
+            when (local verdict = send_hash_to_wildfire(f))
+       @endif
+       {
+
 
                 #print(fmt("%s %s: %s",orig,f$info$sha256,verdict));
                
