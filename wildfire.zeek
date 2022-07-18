@@ -110,7 +110,7 @@ function send_hash_to_wildfire(f: fa_file): string{
        @if (Version::number >= 50000)
            return  when [ req ](local response = ActiveHTTP::request($req=req))
        @else
-           return  (local response = ActiveHTTP::request($req=req))
+           return  when (local response = ActiveHTTP::request($req=req))
        @endif
 
        {
@@ -138,7 +138,7 @@ function send_file_to_wildfire(f: fa_file) {
        @if (Version::number >= 50000)
            return  when [ req ](local response = ActiveHTTP::request($req=req))
        @else
-           return  (local response = ActiveHTTP::request($req=req))
+           return when (local response = ActiveHTTP::request($req=req))
        @endif
 
        {
