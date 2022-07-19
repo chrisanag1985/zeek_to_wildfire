@@ -112,7 +112,6 @@ function send_hash_to_wildfire(f: fa_file): string{
            return  when [ req ](local response = ActiveHTTP::request($req=req))
 	{
                if ( response?$code && response$code == 200){
-	   		print("im here 2");
                        local body = response$body;
                        local verdict = match_pattern(body,/<verdict>([-]?[0-9]{1,3})<\/verdict>/);
                        local verdict_str = verdict$str[9:-10];
@@ -126,7 +125,6 @@ function send_hash_to_wildfire(f: fa_file): string{
 
 
                if ( response?$code && response$code == 200){
-	   		print("im here 2");
                        local body = response$body;
                        local verdict = match_pattern(body,/<verdict>([-]?[0-9]{1,3})<\/verdict>/);
                        local verdict_str = verdict$str[9:-10];
