@@ -107,20 +107,36 @@ function send_hash_to_wildfire(f: fa_file): string{
        local url = WILDFIRE_SERVER+get_verdict;
        local req = ActiveHTTP::Request($url=url,$addl_curl_args=form_data);
 
-       @if (Version::number >= 50000)
+        @if (Version::number >= 50000)
+	
            return  when [ req ](local response = ActiveHTTP::request($req=req))
-       @else
-           return  when (local response = ActiveHTTP::request($req=req))
-       @endif
-
-       {
-               if (response$code == 200){
+	{
+               if ( response?$code && response$code == 200){
+	   		print("im here 2");
                        local body = response$body;
                        local verdict = match_pattern(body,/<verdict>([-]?[0-9]{1,3})<\/verdict>/);
                        local verdict_str = verdict$str[9:-10];
                        return (verdict_str);
                }
-       }
+	}
+       @else
+	
+           return when (local response = ActiveHTTP::request($req=req))
+	{
+
+
+               if ( response?$code && response$code == 200){
+	   		print("im here 2");
+                       local body = response$body;
+                       local verdict = match_pattern(body,/<verdict>([-]?[0-9]{1,3})<\/verdict>/);
+                       local verdict_str = verdict$str[9:-10];
+                       return (verdict_str);
+               }
+
+
+	}
+       @endif
+
 
 }
 
@@ -135,19 +151,27 @@ function send_file_to_wildfire(f: fa_file) {
        local url = WILDFIRE_SERVER+submit_file;
        local req = ActiveHTTP::Request($url=url,$addl_curl_args=form_data);
 
-       @if (Version::number >= 50000)
+        @if (Version::number >= 50000)
            return  when [ req ](local response = ActiveHTTP::request($req=req))
+		{
+
+               	if (response$code != 200){
+                       #print(response$code);
+                       return("") ;
+               	    }
+		}
        @else
            return when (local response = ActiveHTTP::request($req=req))
-       @endif
-
-       {
-               if (response$code != 200){
+		{
+	
+               	if (response$code != 200){
                        #print(response$code);
                        return ;
-               }
-      
-       }
+               		}
+		}
+       @endif
+       
+
 }
 
 function do_verdict(verdict: string,f: fa_file){
@@ -177,15 +201,19 @@ function do_verdict(verdict: string,f: fa_file){
 event WildFireSandbox::recheck_hash(f: fa_file){
        #print(fmt("recheck %s",f$info$sha256));
        @if (Version::number >= 50000)
+	
            when [f] (local verdict = send_hash_to_wildfire(f))
+		{
+               		do_verdict(verdict,f);
+		}	
        @else
+	
            when (local verdict = send_hash_to_wildfire(f))
+	    {
+               		do_verdict(verdict,f);
+	    }
        @endif
-       {
 
-               print(verdict);
-               do_verdict(verdict,f);
-       }
 }
 
 
@@ -215,19 +243,31 @@ event file_state_remove(f: fa_file){
                }
        f$info$extracted = dest;
 
-       @if (Version::number >= 50000)
-            when [f] (local verdict = send_hash_to_wildfire(f))
+      @if (Version::number >= 50000)
+            when [cmd]( local result = Exec::run([$cmd=cmd]) )
+		{}
        @else
-            when (local verdict = send_hash_to_wildfire(f))
+            when ( local result = Exec::run([$cmd=cmd]) )
+		{}
        @endif
-       {
+       f$info$extracted = dest;
 
+       @if (Version::number >= 50000)
+	
+            when [f] (local verdict = send_hash_to_wildfire(f))
+	{
 
-                #print(fmt("%s %s: %s",orig,f$info$sha256,verdict));
-               
                 do_verdict(verdict,f);
 
-       }
+	}
+       @else
+	
+            when (local verdict = send_hash_to_wildfire(f))
+	{
+                do_verdict(verdict,f);
+	}
+       @endif
+
 
 }
 
