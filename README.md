@@ -13,7 +13,7 @@ If any malicious file found it creates a Zeek Notice Log.
 - Zeek creates SHA256 File hash and extracts the files that are supported from PA Wildfire.
 - Send the hash to WildFire and gets the verdict. If it is malicious it creates a notice
 - If the hash it is not known to wildfire, Zeek submits the file to Wildfire.
-- Check every 2 min (in case of Pending state), for verdict.
+- Check every 30 sec (in case of Pending state), for verdict.
 - If verdict is malicious then it creates a notice.
 
 ## Installation
@@ -35,7 +35,7 @@ redef WildFireSandbox::VERIFY_TLS = F;
 
 # This value says to Zeek in which interval will recheck the hash if the verdict was
 # Pending (Wildfire code: -100) or after file submission (Wildfire code: -102) - (value: interval) (default: 30sec)
-redef WildFireSandbox::sleep_interval = 2min;
+redef WildFireSandbox::sleep_interval = 30sec;
 # Change Max retries of recheck (value: count) (default: 10)
 redef WildFireSandbox::max_count = 10;
 ```
