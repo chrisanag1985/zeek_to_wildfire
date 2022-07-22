@@ -30,11 +30,11 @@ redef WildFireSandbox::WILDFIRE_SERVER = "https://your-wildfire-ip";
 
 Optionally you can change the followings
 ```
-# If you dont want to check the validity of the wildfire certificate - (value: bool)
+# If you dont want to check the validity of the wildfire certificate - (value: bool) (default: T)
 redef WildFireSandbox::VERIFY_TLS = F;
 
 # This value says to Zeek in which interval will recheck the hash if the verdict was
-# Pending (Wildfire code: -100) or after file submission (Wildfire code: -102) - (value: interval)
+# Pending (Wildfire code: -100) or after file submission (Wildfire code: -102) - (value: interval) (default: 30sec)
 redef WildFireSandbox::sleep_interval = 2min;
 # Change Max retries of recheck (value: count) (default: 10)
 redef WildFireSandbox::max_count = 10;
