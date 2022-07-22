@@ -6,28 +6,27 @@
 
 module WildFireSandbox;
 
-#TODO add CURL WILDFIRE RETURN ERROR
-#TODO notice with attributes for dynamic notices
-#TODO Recheck what file types our wildfire accepts
 
 export {
 
        global WildFireSandbox::recheck_hash: event(f: fa_file);
        redef ActiveHTTP::default_method = "POST" ;
        redef enum Notice::Type += {
-               Match
+               Match,Info
        };
 
        # Interval - after will retry to get verdict for Pending Hashes or File Sumbits
        option API_KEY = "<API-KEY>" ;
-       option WILDFIRE_SERVER = "<SERVER-IP>";
+       option WILDFIRE_SERVER = "http(s)://<ip or hostname>";
        option VERIFY_TLS = T;
-       option sleep_interval = 1min;
-       
+
+      
+       const sleep_interval = 30sec &redef ;
+       const max_count = 10 &redef ;
        const get_verdict = "/publicapi/get/verdict" &redef;
        const submit_file = "/publicapi/submit/file" &redef;
 
-       # check application/vnd.ms-cab-compressed
+      # check application/vnd.ms-cab-compressed
        option match_file_types = /application\/x-dosexec/ |
                                /application\/pdf/ |  
                                /application\/msword/ |
@@ -40,6 +39,8 @@ export {
 
 }
 # end of export
+
+
 
 const verdict_to_notify: set[string]  = {"1","2","3","4","5"};
 const verdictDict: table[string] of string = {
@@ -74,22 +75,30 @@ const wildfire_errors: table[count] of string = {
 
  
  
+# this contains sha256+uids as key and how many recheck requests has done so far
+global hashes_monitor: table[string] of count;
 
 function send_notice(verdict: string,f: fa_file){
 
+
+               #print("Send Notice");
 	       local uid = join_string_set(f$info$conn_uids,"");
-	       local src: addr;
+	       local src:  addr ;
 	       for ( s in f$info$tx_hosts ){
-	       		src = s;
-	       }
-	       local dst: addr;
+		
+			src = s;
+		}
+	       local dst:  addr ;
 	       for ( s in f$info$rx_hosts ){
-	       		dst = s;
-	       }
+		
+			dst= s;
+		}
 	       local protocol = f$source;
-           
-               local n: Notice::Info = Notice::Info($note=Match,$uid=uid,$src=src,$fuid=f$info$fuid,$dst=dst,$msg=fmt("%s Detected",verdictDict[verdict]),$sub=fmt("Malicious file with SHA256: %s detected over %s with format %s",f$info$sha256,protocol,f$info$mime_type));
+               local n: Notice::Info = Notice::Info($note=Match,$uid=uid,$src=src,$dst=dst,$fuid=f$info$fuid,$msg=fmt("%s Detected",verdictDict[verdict]),$sub=fmt("Malicious file with SHA256: %s over %s with format %s  ",f$info$sha256,protocol,f$info$mime_type));
+
                NOTICE(n);
+
+
 
 
 }
@@ -101,13 +110,14 @@ function send_hash_to_wildfire(f: fa_file): string{
 
        local hash = f$info$sha256;
        local form_data = " -F 'apikey="+API_KEY+"' -F 'hash="+hash+"'";
-	   if (!VERIFY_TLS){
+	   if (VERIFY_TLS){
 			form_data = " -k "+form_data;
 	   }
        local url = WILDFIRE_SERVER+get_verdict;
        local req = ActiveHTTP::Request($url=url,$addl_curl_args=form_data);
 
-        @if (Version::number >= 50000)
+
+       @if (Version::number >= 50000)
 	
            return  when [ req ](local response = ActiveHTTP::request($req=req))
 	{
@@ -134,7 +144,6 @@ function send_hash_to_wildfire(f: fa_file): string{
 
 	}
        @endif
-
 
 }
 
@@ -142,53 +151,94 @@ function send_hash_to_wildfire(f: fa_file): string{
 function send_file_to_wildfire(f: fa_file) {
 
        local hash = f$info$sha256;
+       #print(fmt("Send file %s",hash));
        local form_data = " -F 'apikey="+API_KEY+"' -F 'file=@./extract_files/"+hash+"'";
-	   if (!VERIFY_TLS){
+	   if (VERIFY_TLS){
 			form_data = " -k "+form_data;
 	   }
        local url = WILDFIRE_SERVER+submit_file;
        local req = ActiveHTTP::Request($url=url,$addl_curl_args=form_data);
 
-        @if (Version::number >= 50000)
-           return  when [ req ](local response = ActiveHTTP::request($req=req))
+       @if (Version::number >= 50000)
+           when [ req,f ](local response = ActiveHTTP::request($req=req))
 		{
 
                	if (response$code != 200){
-                       #print(response$code);
-                       return("") ;
+                       print(response$code);
                	    }
+		else {
+
+                	schedule sleep_interval { WildFireSandbox::recheck_hash(f)};
+		}
 		}
        @else
-           return when (local response = ActiveHTTP::request($req=req))
+           when (local response = ActiveHTTP::request($req=req))
 		{
 	
                	if (response$code != 200){
-                       #print(response$code);
-                       return ;
+                       print(response$code);
                		}
+		else {
+
+                	schedule sleep_interval { WildFireSandbox::recheck_hash(f)};
+		}
 		}
        @endif
        
-
+      
+       
 }
 
 function do_verdict(verdict: string,f: fa_file){
     
+
+
+	local uid = join_string_set(f$info$conn_uids,"");
+	local hash = f$info$sha256;
+	local id = hash+uid;
+	local counter: count = hashes_monitor[id];
+
+	#print(fmt("Counter %s Verdict: %s, Hash: %s",counter,verdict,hash));
         if (verdict in verdict_to_notify){
         
             send_notice(verdict,f);
         }
+
+	if ( verdict != "-102" && verdict != "-100" ){
+
+		delete hashes_monitor[id];
+	}
         
         if (verdict == "-100"){
                 #print(verdictDict[verdict]);
-                schedule sleep_interval { WildFireSandbox::recheck_hash(f)};
-        
-        }
+		if ( counter < max_count ){
+			hashes_monitor[id] = counter+1;
+                	schedule sleep_interval { WildFireSandbox::recheck_hash(f)};
+		}else{
+		
+			print("More than max_count. stopping");
+			delete hashes_monitor[id];
+		        local src:  addr ;
+		        for ( s in f$info$tx_hosts ){
+		         
+		         	src = s;
+		         }
+		        local dst:  addr ;
+		        for ( s in f$info$rx_hosts ){
+		         
+		         	dst= s;
+		         }
+		        local protocol = f$source;
+               		local n: Notice::Info = Notice::Info($note=Info,$uid=uid,$src=src,$dst=dst,$fuid=f$info$fuid,$msg=fmt("File Hash Exceeded the MAX Recheck tries"),$sub=fmt("File Hash: %s",f$info$sha256));
 
-        if (verdict == "-102"){
-                #print("Send file");
+               		NOTICE(n);
+		
+        
+        		}
+	}
+        if (verdict == "-102" && counter == 0){
+		hashes_monitor[id] = counter+1;
                 send_file_to_wildfire(f);
-                schedule sleep_interval { WildFireSandbox::recheck_hash(f)};
 
                }
 
@@ -197,7 +247,7 @@ function do_verdict(verdict: string,f: fa_file){
 
 
 event WildFireSandbox::recheck_hash(f: fa_file){
-       #print(fmt("recheck %s",f$info$sha256));
+       #print(fmt("recheck %s counter: %s",f$info$sha256,hashes_monitor[f$info$sha256]));
        @if (Version::number >= 50000)
 	
            when [f] (local verdict = send_hash_to_wildfire(f))
@@ -211,7 +261,6 @@ event WildFireSandbox::recheck_hash(f: fa_file){
                		do_verdict(verdict,f);
 	    }
        @endif
-
 }
 
 
@@ -231,17 +280,9 @@ event file_state_remove(f: fa_file){
 
        # rename to SHA256 to stored files
        local cmd = fmt("mv ./extract_files/%s ./extract_files/%s", orig, dest);
+
+
        @if (Version::number >= 50000)
-            when [cmd]( local result = Exec::run([$cmd=cmd]) )
-       @else
-            when ( local result = Exec::run([$cmd=cmd]) )
-       @endif
-
-               {
-               }
-       f$info$extracted = dest;
-
-      @if (Version::number >= 50000)
             when [cmd]( local result = Exec::run([$cmd=cmd]) )
 		{}
        @else
@@ -250,22 +291,30 @@ event file_state_remove(f: fa_file){
        @endif
        f$info$extracted = dest;
 
-       @if (Version::number >= 50000)
+
+	local uid = join_string_set(f$info$conn_uids,"");
+	#print(fmt("Adding new Hash: %s for Conn uid: %s",dest,uid));
+	hashes_monitor[dest+uid] = 0;
+
+
+	@if (Version::number >= 50000)
+	 
+	     when [f] (local verdict = send_hash_to_wildfire(f))
+	 {
+
+		do_verdict(verdict,f);
+
+	 }
+	@else
+	 
+	     when (local verdict = send_hash_to_wildfire(f))
+	 {
+		do_verdict(verdict,f);
+	 }
+	@endif
+
+
 	
-            when [f] (local verdict = send_hash_to_wildfire(f))
-	{
-
-                do_verdict(verdict,f);
-
-	}
-       @else
-	
-            when (local verdict = send_hash_to_wildfire(f))
-	{
-                do_verdict(verdict,f);
-	}
-       @endif
-
 
 }
 
@@ -277,3 +326,4 @@ event file_sniff(f: fa_file, meta:fa_metadata){
        Files::add_analyzer(f,Files::ANALYZER_EXTRACT);
        }
 }
+
