@@ -36,6 +36,8 @@ redef WildFireSandbox::VERIFY_TLS = F;
 # This value says to Zeek in which interval will recheck the hash if the verdict was
 # Pending (Wildfire code: -100) or after file submission (Wildfire code: -102) - (value: interval)
 redef WildFireSandbox::sleep_interval = 2min;
+# Change Max retries of recheck (value: count) (default: 10)
+redef WildFireSandbox::max_count = 10;
 ```
 
 
